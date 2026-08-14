@@ -4,9 +4,13 @@
     <el-card>
       <el-form :inline="true" :model="query" style="margin-bottom: 16px">
         <el-form-item label="类型">
-          <el-select v-model="query.type" placeholder="全部" clearable style="width: 140px">
-            <el-option label="超时" value="timeout" />
+          <el-select v-model="query.type" placeholder="全部" clearable style="width: 180px">
+            <el-option label="全部" value="" />
+            <el-option label="出库超时" value="timeout" />
             <el-option label="重复使用" value="reuse" />
+            <el-option label="删除活跃硬盘" value="delete_disk_active" />
+            <el-option label="违规删除记录" value="delete_record" />
+            <el-option label="违规入库" value="inbound_invalid_status" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
@@ -22,9 +26,10 @@
       </el-form>
       <el-table :data="list" border stripe v-loading="loading">
         <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column label="类型" width="100">
+        <el-table-column prop="username" label="操作人" width="100" />
+        <el-table-column label="类型" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.type === 'timeout' ? 'warning' : 'danger'">{{ row.type === 'timeout' ? '超时' : '重复使用' }}</el-tag>
+            <el-tag :type="typeTag(row.type)">{{ typeLabel(row.type) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="description" label="描述" min-width="300" show-overflow-tooltip />
@@ -51,7 +56,6 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { listViolations, resolveViolation } from '@/api/rule'
-import { checkFeishuConfig, exportViolations } from '@/api/feishu'
 import { ElMessage } from 'element-plus'
 
 const loading = ref(false)
@@ -59,12 +63,37 @@ const list = ref([])
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
-const query = reactive({ type: null, status: null })
+const query = reactive({ type: '', status: null })
+
+function typeLabel(type) {
+  const map = {
+    timeout: '出库超时',
+    reuse: '重复使用',
+    delete_disk_active: '删除活跃硬盘',
+    delete_record: '违规删除记录',
+    inbound_invalid_status: '违规入库'
+  }
+  return map[type] || type
+}
+
+function typeTag(type) {
+  const map = {
+    timeout: 'warning',
+    reuse: 'danger',
+    delete_disk_active: 'danger',
+    delete_record: 'danger',
+    inbound_invalid_status: 'warning'
+  }
+  return map[type] || 'info'
+}
 
 async function fetchData() {
   loading.value = true
   try {
-    const res = await listViolations({ page: page.value, pageSize: pageSize.value, ...query })
+    const params = { page: page.value, pageSize: pageSize.value }
+    if (query.type) params.type = query.type
+    if (query.status !== null && query.status !== '') params.status = query.status
+    const res = await listViolations(params)
     list.value = res.data.list
     total.value = res.data.total
   } catch (e) {
@@ -75,7 +104,7 @@ async function fetchData() {
 }
 
 function handleSearch() { page.value = 1; fetchData() }
-function resetQuery() { query.type = null; query.status = null; handleSearch() }
+function resetQuery() { query.type = ''; query.status = null; handleSearch() }
 
 async function handleResolve(row) {
   try {
@@ -84,26 +113,6 @@ async function handleResolve(row) {
     fetchData()
   } catch (e) {
     ElMessage.error(e.message)
-  }
-}
-
-const exportLoading = ref(false)
-
-async function handleExport() {
-  try {
-    const configRes = await checkFeishuConfig()
-    if (!configRes.data) {
-      ElMessage.warning('飞书配置未完善，请先在规则配置中设置飞书参数')
-      return
-    }
-    await ElMessageBox.confirm('确认将违规记录导出到飞书电子表格？', '导出确认', { type: 'info' })
-    exportLoading.value = true
-    await exportViolations('Sheet1')
-    ElMessage.success('导出成功')
-  } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e.message || '导出失败')
-  } finally {
-    exportLoading.value = false
   }
 }
 

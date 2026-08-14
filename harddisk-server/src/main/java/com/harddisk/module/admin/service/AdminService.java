@@ -1,7 +1,9 @@
-package com.harddisk.module.admin.service;
+﻿package com.harddisk.module.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.harddisk.module.admin.dto.UserCreateRequest;
+import com.harddisk.module.admin.dto.UserUpdateRequest;
 import com.harddisk.module.auth.entity.SysUser;
 import com.harddisk.module.auth.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
@@ -26,28 +28,34 @@ public class AdminService {
     }
 
     @Transactional
-    public SysUser createUser(SysUser user) {
+    public SysUser createUser(UserCreateRequest req) {
         SysUser existing = sysUserMapper.selectOne(
-                new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, user.getUsername()));
+                new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, req.getUsername()));
         if (existing != null) throw new IllegalArgumentException("用户名已存在");
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setStatus(user.getStatus() != null ? user.getStatus() : 1);
-        if (user.getRole() == null) user.setRole("USER");
+
+        SysUser user = new SysUser();
+        user.setUsername(req.getUsername());
+        user.setPassword(passwordEncoder.encode(req.getPassword()));
+        user.setDisplayName(req.getDisplayName());
+        user.setEmail(req.getEmail());
+        user.setPhone(req.getPhone());
+        user.setStatus(1);
+        user.setRole("USER");
         sysUserMapper.insert(user);
         return user;
     }
 
     @Transactional
-    public SysUser updateUser(Long id, SysUser user) {
+    public SysUser updateUser(Long id, UserUpdateRequest req) {
         SysUser existing = sysUserMapper.selectById(id);
         if (existing == null) throw new IllegalArgumentException("用户不存在");
-        if (user.getDisplayName() != null) existing.setDisplayName(user.getDisplayName());
-        if (user.getEmail() != null) existing.setEmail(user.getEmail());
-        if (user.getPhone() != null) existing.setPhone(user.getPhone());
-        if (user.getRole() != null) existing.setRole(user.getRole());
-        if (user.getStatus() != null) existing.setStatus(user.getStatus());
-        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
-            existing.setPassword(passwordEncoder.encode(user.getPassword()));
+        if (req.getDisplayName() != null) existing.setDisplayName(req.getDisplayName());
+        if (req.getEmail() != null) existing.setEmail(req.getEmail());
+        if (req.getPhone() != null) existing.setPhone(req.getPhone());
+        if (req.getRole() != null) existing.setRole(req.getRole());
+        if (req.getStatus() != null) existing.setStatus(req.getStatus());
+        if (req.getPassword() != null && !req.getPassword().isEmpty()) {
+            existing.setPassword(passwordEncoder.encode(req.getPassword()));
         }
         sysUserMapper.updateById(existing);
         return existing;

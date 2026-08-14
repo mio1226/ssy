@@ -1,4 +1,4 @@
-﻿import axios from 'axios'
+import axios from 'axios'
 
 const request = axios.create({
   baseURL: '/api',
@@ -25,6 +25,9 @@ request.interceptors.response.use(
     return Promise.reject(new Error(res.msg || '请求失败'))
   },
   error => {
+    if (error.response && error.response.data && error.response.data.msg) {
+      return Promise.reject(new Error(error.response.data.msg))
+    }
     return Promise.reject(error)
   }
 )

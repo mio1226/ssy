@@ -10,9 +10,10 @@ public class ViolationRecord {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long userId;
+    private String username;
     private Long diskId;
     private Long recordId;
-    private String type;             // timeout / reuse
+    private String type;             // timeout / reuse / delete_disk_active / delete_record / inbound_invalid_status
     private String description;
     private Integer status;          // 0=pending 1=resolved
 

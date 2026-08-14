@@ -1,7 +1,8 @@
-package com.harddisk.module.auth.security;
+﻿package com.harddisk.module.auth.security;
 
 import com.harddisk.module.auth.entity.SysUser;
 import com.harddisk.module.auth.mapper.SysUserMapper;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,7 +25,6 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
-    private final SysUserMapper sysUserMapper;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -32,12 +32,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = extractToken(request);
             if (StringUtils.hasText(token) && jwtUtil.validateToken(token)) {
-                Long userId = Long.parseLong(jwtUtil.parseToken(token).getSubject());
-                SysUser user = sysUserMapper.selectById(userId);
-                if (user != null && user.getStatus() == 1) {
+                Claims claims = jwtUtil.parseToken(token);
+                Long userId = Long.parseLong(claims.getSubject());
+                String username = claims.get("username", String.class);
+                String role = claims.get("role", String.class);
+
+                if (role != null) {
                     List<SimpleGrantedAuthority> authorities = List.of(
-                            new SimpleGrantedAuthority("ROLE_" + user.getRole().toUpperCase())
+                            new SimpleGrantedAuthority("ROLE_" + role.toUpperCase())
                     );
+                    SysUser user = new SysUser();
+                    user.setId(userId);
+                    user.setUsername(username);
+                    user.setRole(role);
+
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(user, null, authorities);
                     authentication.setDetails(userId);
@@ -45,7 +53,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            log.warn("JWT 认证异常: {}", e.getMessage());
+            log.warn("JWT认证异常: {}", e.getMessage());
+            response.setContentType("application/json;charset=utf-8");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("{\"code\":401,\"msg\":\"无效的访问令牌，请重新登录\"}");
+            return;
         }
         filterChain.doFilter(request, response);
     }

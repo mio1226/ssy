@@ -1,8 +1,14 @@
-﻿<template>
+<template>
   <div>
     <div style="display: flex; justify-content: space-between; margin-bottom: 16px">
       <h3>使用记录管理</h3>
-      <el-button type="success" @click="handleExport" :loading="exportLoading">导出到飞书</el-button>
+      <div>
+        <el-button-group style="margin-right: 12px">
+          <el-button :type="sortBy === 'id' ? 'primary' : 'default'" size="small" @click="toggleSort('id')">按ID排序</el-button>
+          <el-button :type="sortBy === 'disk_id' ? 'primary' : 'default'" size="small" @click="toggleSort('disk_id')">按磁盘ID排序</el-button>
+        </el-button-group>
+        <el-button type="success" @click="handleExport" :loading="exportLoading">导出到飞书</el-button>
+      </div>
     </div>
     <el-card>
       <el-form :inline="true" :model="query" style="margin-bottom: 16px">
@@ -24,7 +30,6 @@
         <el-form-item label="状态">
           <el-select v-model="query.status" placeholder="全部" clearable style="width: 140px">
             <el-option label="出库" :value="1" />
-            <el-option label="存储数据中" :value="2" />
             <el-option label="入库待备份" :value="3" />
             <el-option label="入库已备份" :value="4" />
           </el-select>
@@ -35,7 +40,8 @@
         </el-form-item>
       </el-form>
       <el-table :data="list" border stripe v-loading="loading">
-        <el-table-column prop="id" label="记录ID" width="80" />
+        <el-table-column prop="displaySeq" label="序号" width="80" />
+        <el-table-column prop="diskDisplaySeq" label="硬盘序号" width="90" />
         <el-table-column prop="diskModel" label="硬盘型号" min-width="120" />
         <el-table-column prop="diskSn" label="SN码" min-width="160" />
         <el-table-column label="状态" width="120">
@@ -48,7 +54,7 @@
         <el-table-column prop="storageContent" label="存储内容" min-width="200" show-overflow-tooltip />
         <el-table-column prop="operatorName" label="操作人" width="100" />
         <el-table-column prop="parentRecordId" label="父记录ID" width="90" />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column v-if="userStore.isAdmin()" label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleEdit(row)">编辑</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
@@ -65,14 +71,13 @@
       </div>
     </el-card>
 
-    <el-dialog v-model="editDialog" title="编辑使用记录" width="500px">
+    <el-dialog v-if="userStore.isAdmin()" v-model="editDialog" title="编辑使用记录" width="500px">
       <el-form :model="editForm" label-width="100px">
         <el-form-item label="记录ID">{{ editForm.id }}</el-form-item>
         <el-form-item label="硬盘">{{ editForm.diskModel }} ({{ editForm.diskSn }})</el-form-item>
         <el-form-item label="状态">
           <el-select v-model="editForm.status">
             <el-option label="出库" :value="1" />
-            <el-option label="存储数据中" :value="2" />
             <el-option label="入库待备份" :value="3" />
             <el-option label="入库已备份" :value="4" />
           </el-select>
@@ -100,20 +105,36 @@ import { ref, reactive, onMounted } from 'vue'
 import { listAllRecords, updateRecord, deleteRecord } from '@/api/disk'
 import { checkFeishuConfig, exportRecords } from '@/api/feishu'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
 const loading = ref(false)
 const list = ref([])
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const query = reactive({ recordId: null, model: null, sn: null, operatorName: null, storageContent: null, status: null })
+const sortBy = ref('')
+const sortOrder = ref('desc')
+
+function toggleSort(field) {
+  if (sortBy.value === field) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = field
+    sortOrder.value = 'asc'
+  }
+  fetchData()
+}
 
 const editDialog = ref(false)
 const editLoading = ref(false)
 const editForm = reactive({ id: null, diskId: null, diskModel: '', diskSn: '', status: 1, outTime: null, inTime: null, storageContent: '' })
 
+const exportLoading = ref(false)
+
 function statusType(s) { return { 1: 'warning', 2: 'primary', 3: 'info', 4: 'success' }[s] || 'info' }
-function statusLabel(s) { return { 1: '出库', 2: '存储数据中', 3: '入库待备份', 4: '入库已备份' }[s] || '未知' }
+function statusLabel(s) { return { 1: '出库',3: '入库待备份', 4: '入库已备份' }[s] || '未知' }
 
 async function fetchData() {
   loading.value = true
@@ -125,6 +146,7 @@ async function fetchData() {
     if (query.operatorName) params.operatorName = query.operatorName
     if (query.storageContent) params.storageContent = query.storageContent
     if (query.status !== null && query.status !== '') params.status = query.status
+    if (sortBy.value) { params.sortBy = sortBy.value; params.sortOrder = sortOrder.value }
     const res = await listAllRecords(params)
     list.value = res.data.list
     total.value = res.data.total
@@ -167,13 +189,15 @@ async function confirmEdit() {
 
 function handleDelete(row) {
   ElMessageBox.confirm('确认删除该使用记录？', '提示').then(async () => {
-    await deleteRecord(row.id)
-    ElMessage.success('删除成功')
-    fetchData()
+    try {
+      await deleteRecord(row.id)
+      ElMessage.success('删除成功')
+      fetchData()
+    } catch (e) {
+      ElMessage.error(e.message || '删除失败')
+    }
   }).catch(() => {})
 }
-
-const exportLoading = ref(false)
 
 async function handleExport() {
   try {

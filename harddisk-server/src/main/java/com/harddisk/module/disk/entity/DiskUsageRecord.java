@@ -9,8 +9,9 @@ import java.time.LocalDateTime;
 public class DiskUsageRecord {
     @TableId(type = IdType.AUTO)
     private Long id;
+    private Integer displaySeq;
     private Long diskId;
-    private Integer status;          // 1=出库 2=存储数据中 3=入库待备份 4=入库已备份
+    private Integer status;          // 1=出库 3=入库待备份 4=入库已备份
     private LocalDateTime outTime;
     private LocalDateTime inTime;
     private String storageContent;
@@ -27,6 +28,9 @@ public class DiskUsageRecord {
     private Integer deleted;
 
     // 关联硬盘信息（非数据库字段）
+    @TableField(exist = false)
+    private Integer diskDisplaySeq;
+
     @TableField(exist = false)
     private String diskModel;
 

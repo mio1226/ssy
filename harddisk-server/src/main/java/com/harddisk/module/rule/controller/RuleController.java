@@ -6,6 +6,7 @@ import com.harddisk.module.rule.entity.RuleConfig;
 import com.harddisk.module.rule.entity.ViolationRecord;
 import com.harddisk.module.rule.service.RuleService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,17 +29,20 @@ public class RuleController {
     }
 
     @PutMapping("/violations/{id}/resolve")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<Void> resolveViolation(@PathVariable Long id) {
         ruleService.resolveViolation(id);
         return Result.success();
     }
 
     @GetMapping("/configs")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<List<RuleConfig>> getRuleConfigs() {
         return Result.success(ruleService.getRuleConfigs());
     }
 
     @PutMapping("/configs")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<RuleConfig> updateRuleConfig(@RequestBody RuleConfig config) {
         return Result.success(ruleService.updateRuleConfig(config));
     }

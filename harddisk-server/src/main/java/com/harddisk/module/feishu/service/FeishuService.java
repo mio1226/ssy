@@ -1,4 +1,4 @@
-package com.harddisk.module.feishu.service;
+﻿package com.harddisk.module.feishu.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -20,15 +20,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FeishuService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
     private final RuleConfigMapper ruleConfigMapper;
 
     private static final String BASE_URL = "https://open.feishu.cn/open-apis";
     private static final long TOKEN_EXPIRE_BUFFER = 60;
 
-    private String cachedToken;
-    private long tokenExpireAt;
+    private volatile String cachedToken;
+    private volatile long tokenExpireAt;
 
     private String getConfigValue(String key) {
         RuleConfig config = ruleConfigMapper.selectOne(
@@ -42,54 +42,41 @@ public class FeishuService {
     private String getAppSecret() { return getConfigValue("feishu_app_secret"); }
     private String getSpreadsheetToken() { return getConfigValue("feishu_spreadsheet_token"); }
 
-    public String getDebugAppId() { return getAppId(); }
-    public String getDebugSpreadsheetToken() { return getSpreadsheetToken(); }
-    public String getDebugAppSecret() { return getAppSecret(); }
-
-    public String getDebugToken() {
-        try { return getAccessToken(); } catch (Exception e) { return null; }
-    }
-
-    public JsonNode debugGetSheetMeta() {
-        String token = getAccessToken();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
-        HttpEntity<String> req = new HttpEntity<>(headers);
-        ResponseEntity<JsonNode> resp = restTemplate.exchange(
-            BASE_URL + "/sheets/v2/spreadsheets/" + getSpreadsheetToken() + "/metainfo",
-            HttpMethod.GET, req, JsonNode.class);
-        return resp.getBody();
+    public boolean isConfigured() {
+        return !getAppId().isEmpty() && !getAppSecret().isEmpty() && !getSpreadsheetToken().isEmpty();
     }
 
     private String getAccessToken() {
         if (cachedToken != null && System.currentTimeMillis() / 1000 < tokenExpireAt) {
             return cachedToken;
         }
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            ObjectNode body = objectMapper.createObjectNode();
-            body.put("app_id", getAppId());
-            body.put("app_secret", getAppSecret());
-            HttpEntity<String> request = new HttpEntity<>(body.toString(), headers);
-            ResponseEntity<JsonNode> response = restTemplate.exchange(
-                    BASE_URL + "/auth/v3/tenant_access_token/internal",
-                    HttpMethod.POST, request, JsonNode.class);
-            JsonNode resp = response.getBody();
-            if (resp != null && resp.has("code") && resp.get("code").asInt() == 0) {
-                cachedToken = resp.get("tenant_access_token").asText();
-                int expire = resp.get("expire").asInt();
-                tokenExpireAt = System.currentTimeMillis() / 1000 + expire - TOKEN_EXPIRE_BUFFER;
+        synchronized (this) {
+            // 双重检查，避免并发时多个线程同时获取 token
+            if (cachedToken != null && System.currentTimeMillis() / 1000 < tokenExpireAt) {
                 return cachedToken;
             }
-            throw new RuntimeException("获取飞书 token 失败: " + (resp != null ? resp.toString() : "null"));
-        } catch (Exception e) {
-            throw new RuntimeException("获取飞书 token 异常: " + e.getMessage());
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                ObjectNode body = objectMapper.createObjectNode();
+                body.put("app_id", getAppId());
+                body.put("app_secret", getAppSecret());
+                HttpEntity<String> request = new HttpEntity<>(body.toString(), headers);
+                ResponseEntity<JsonNode> response = restTemplate.exchange(
+                        BASE_URL + "/auth/v3/tenant_access_token/internal",
+                        HttpMethod.POST, request, JsonNode.class);
+                JsonNode resp = response.getBody();
+                if (resp != null && resp.has("code") && resp.get("code").asInt() == 0) {
+                    cachedToken = resp.get("tenant_access_token").asText();
+                    int expire = resp.get("expire").asInt();
+                    tokenExpireAt = System.currentTimeMillis() / 1000 + expire - TOKEN_EXPIRE_BUFFER;
+                    return cachedToken;
+                }
+                throw new RuntimeException("获取飞书 token 失败: " + (resp != null ? resp.toString() : "null"));
+            } catch (Exception e) {
+                throw new RuntimeException("获取飞书 token 异常: " + e.getMessage());
+            }
         }
-    }
-
-    public boolean isConfigured() {
-        return !getAppId().isEmpty() && !getAppSecret().isEmpty() && !getSpreadsheetToken().isEmpty();
     }
 
     /**

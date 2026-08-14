@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div>
     <h3 style="margin-bottom: 16px">仪表盘</h3>
 
@@ -84,7 +84,7 @@
             </div>
             <div class="record-bar" style="border-bottom: none; font-weight: bold">
               <span class="record-label">总计</span>
-              <span class="record-num">{{ stats.totalRecords }}</span>
+              <span class="record-num">{{ stats.totalDisks }}</span>
             </div>
           </div>
         </el-card>

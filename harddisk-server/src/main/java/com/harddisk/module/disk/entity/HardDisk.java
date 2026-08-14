@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class HardDisk {
     @TableId(type = IdType.AUTO)
     private Long id;
+    private Integer displaySeq;
     private String model;
     private String sn;
     private BigDecimal capacity;

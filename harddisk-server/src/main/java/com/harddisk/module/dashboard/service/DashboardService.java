@@ -31,7 +31,7 @@ public class DashboardService {
         stats.setInUseDisks(hardDiskMapper.selectCount(
                 new LambdaQueryWrapper<HardDisk>().eq(HardDisk::getIsIdle, false)));
 
-        // 使用记录统计
+        // 使用记录统计（当前活跃状态）
         stats.setTotalRecords(usageRecordMapper.selectCount(null));
         stats.setOutboundRecords(usageRecordMapper.selectCount(
                 new LambdaQueryWrapper<DiskUsageRecord>().eq(DiskUsageRecord::getStatus, 1)));
@@ -39,14 +39,12 @@ public class DashboardService {
                 new LambdaQueryWrapper<DiskUsageRecord>().eq(DiskUsageRecord::getStatus, 2)));
         stats.setInboundPendingRecords(usageRecordMapper.selectCount(
                 new LambdaQueryWrapper<DiskUsageRecord>().eq(DiskUsageRecord::getStatus, 3)));
-        stats.setInboundDoneRecords(usageRecordMapper.selectCount(
-                new LambdaQueryWrapper<DiskUsageRecord>().eq(DiskUsageRecord::getStatus, 4)));
+        stats.setInboundDoneRecords(stats.getIdleDisks());
 
-        // 本月统计
+        // 本月统计（按出库时间统计，不限当前状态）
         LocalDateTime monthStart = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
         stats.setMonthOutboundCount(usageRecordMapper.selectCount(
                 new LambdaQueryWrapper<DiskUsageRecord>()
-                        .eq(DiskUsageRecord::getStatus, 1)
                         .ge(DiskUsageRecord::getOutTime, monthStart)));
         stats.setMonthInboundCount(usageRecordMapper.selectCount(
                 new LambdaQueryWrapper<DiskUsageRecord>()

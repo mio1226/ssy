@@ -9,6 +9,7 @@ import com.harddisk.module.disk.service.HardDiskService;
 import com.harddisk.module.auth.entity.SysUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,8 +28,10 @@ public class HardDiskController {
             @RequestParam(defaultValue = "20") int pageSize,
             @RequestParam(required = false) String model,
             @RequestParam(required = false) String sn,
-            @RequestParam(required = false) Boolean isIdle) {
-        var p = hardDiskService.list(page, pageSize, model, sn, isIdle);
+            @RequestParam(required = false) Boolean isIdle,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortOrder) {
+        var p = hardDiskService.list(page, pageSize, model, sn, isIdle, sortBy, sortOrder);
         return Result.success(PageResult.of(p.getTotal(), p.getCurrent(), p.getSize(), p.getRecords()));
     }
 
@@ -44,31 +47,37 @@ public class HardDiskController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<HardDisk> update(@PathVariable Long id, @RequestBody HardDiskUpdateRequest req) {
         return Result.success(hardDiskService.update(id, req));
     }
 
     @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id) {
-        hardDiskService.delete(id);
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Void> delete(@PathVariable Long id, @AuthenticationPrincipal SysUser user) {
+        hardDiskService.delete(id, user.getId(), user.getUsername());
         return Result.success();
     }
 
     @PostMapping("/outbound")
     public Result<DiskUsageRecord> outbound(@Valid @RequestBody DiskOutRequest req,
                                              @AuthenticationPrincipal SysUser user) {
-        return Result.success(hardDiskService.outbound(req, user.getId()));
+        return Result.success(hardDiskService.outbound(req, user.getId(), user.getUsername()));
     }
 
     @PostMapping("/inbound")
     public Result<DiskUsageRecord> inbound(@Valid @RequestBody DiskInRequest req,
                                             @AuthenticationPrincipal SysUser user) {
-        return Result.success(hardDiskService.inbound(req, user.getId()));
+        return Result.success(hardDiskService.inbound(req, user.getId(), user.getUsername()));
     }
 
     @GetMapping("/{diskId}/records")
-    public Result<List<DiskUsageRecord>> getRecords(@PathVariable Long diskId) {
-        return Result.success(hardDiskService.getRecords(diskId));
+    public Result<PageResult<DiskUsageRecord>> getRecords(
+            @PathVariable Long diskId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        var p = hardDiskService.getRecords(diskId, page, pageSize);
+        return Result.success(PageResult.of(p.getTotal(), p.getCurrent(), p.getSize(), p.getRecords()));
     }
 
     @GetMapping("/records/{recordId}")
@@ -76,7 +85,7 @@ public class HardDiskController {
         return Result.success(hardDiskService.getRecordById(recordId));
     }
 
-    // ========== 记录管理 CRUD ==========
+    // ========== 浣跨敤璁板綍 CRUD ==========
 
     @GetMapping("/records/list")
     public Result<PageResult<DiskUsageRecord>> listAllRecords(
@@ -87,19 +96,24 @@ public class HardDiskController {
             @RequestParam(required = false) String sn,
             @RequestParam(required = false) String operatorName,
             @RequestParam(required = false) String storageContent,
-            @RequestParam(required = false) Integer status) {
-        var p = hardDiskService.listAllRecords(page, pageSize, recordId, model, sn, operatorName, storageContent, status);
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortOrder) {
+        var p = hardDiskService.listAllRecords(page, pageSize, recordId, model, sn, operatorName, storageContent, status, sortBy, sortOrder);
         return Result.success(PageResult.of(p.getTotal(), p.getCurrent(), p.getSize(), p.getRecords()));
     }
 
     @PutMapping("/records/{id}")
-    public Result<DiskUsageRecord> updateRecord(@PathVariable Long id, @RequestBody RecordUpdateRequest req) {
-        return Result.success(hardDiskService.updateRecord(id, req));
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<DiskUsageRecord> updateRecord(@PathVariable Long id, @RequestBody RecordUpdateRequest req, @AuthenticationPrincipal SysUser user) {
+        return Result.success(hardDiskService.updateRecord(id, req, user.getId(), user.getUsername()));
     }
 
     @DeleteMapping("/records/{id}")
-    public Result<Void> deleteRecord(@PathVariable Long id) {
-        hardDiskService.deleteRecord(id);
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Void> deleteRecord(@PathVariable Long id, @AuthenticationPrincipal SysUser user) {
+        hardDiskService.deleteRecord(id, user.getId(), user.getUsername());
         return Result.success();
     }
 }
+

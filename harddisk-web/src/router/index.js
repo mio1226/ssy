@@ -1,4 +1,4 @@
-﻿import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
 const routes = [
@@ -12,11 +12,11 @@ const routes = [
       { path: 'dashboard', name: 'Dashboard', component: () => import('@/views/dashboard/Dashboard.vue') },
       { path: 'disk', name: 'Disk', component: () => import('@/views/disk/DiskList.vue') },
       { path: 'disk/create', name: 'DiskCreate', component: () => import('@/views/disk/DiskForm.vue') },
-      { path: 'disk/:id/edit', name: 'DiskEdit', component: () => import('@/views/disk/DiskForm.vue'), props: true },
+      { path: 'disk/:id/edit', name: 'DiskEdit', component: () => import('@/views/disk/DiskForm.vue'), props: true, meta: { admin: true } },
       { path: 'disk/:id/records', name: 'DiskRecords', component: () => import('@/views/disk/DiskRecords.vue'), props: true },
       { path: 'records', name: 'RecordList', component: () => import('@/views/disk/RecordList.vue') },
       { path: 'rule/violations', name: 'Violations', component: () => import('@/views/rule/ViolationList.vue') },
-      { path: 'rule/configs', name: 'RuleConfigs', component: () => import('@/views/rule/RuleConfig.vue') },
+      { path: 'rule/configs', name: 'RuleConfigs', component: () => import('@/views/rule/RuleConfig.vue'), meta: { admin: true } },
       { path: 'admin/users', name: 'AdminUsers', component: () => import('@/views/admin/UserList.vue'), meta: { admin: true } },
     ]
   }

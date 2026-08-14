@@ -6,7 +6,7 @@
     </div>
     <el-card>
       <el-table :data="records" border stripe v-loading="loading">
-        <el-table-column prop="id" label="记录ID" width="80" />
+        <el-table-column prop="displaySeq" label="序号" width="80" />
         <el-table-column label="状态" width="130">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)">{{ statusLabel(row.status) }}</el-tag>
@@ -23,6 +23,14 @@
           </template>
         </el-table-column>
       </el-table>
+      <div style="margin-top: 16px; display: flex; justify-content: center">
+        <el-pagination
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          :total="total"
+          layout="prev, pager, next, total"
+          @current-change="fetchData" />
+      </div>
     </el-card>
 
     <el-dialog v-model="inDialog" title="硬盘入库" width="500px">
@@ -49,7 +57,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getDisk, getRecords, inbound } from '@/api/disk'
 import { ElMessage } from 'element-plus'
@@ -58,6 +66,9 @@ const route = useRoute()
 const disk = ref(null)
 const records = ref([])
 const loading = ref(false)
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
 const inDialog = ref(false)
 const inLoading = ref(false)
@@ -69,7 +80,7 @@ function statusType(s) {
   return { 1: 'warning', 2: 'primary', 3: 'info', 4: 'success' }[s] || 'info'
 }
 function statusLabel(s) {
-  return { 1: '出库', 2: '存储数据中', 3: '入库待备份', 4: '入库已备份' }[s] || '未知'
+  return { 1: '出库',3: '入库待备份', 4: '入库已备份' }[s] || '未知'
 }
 
 async function fetchData() {
@@ -77,10 +88,11 @@ async function fetchData() {
   try {
     const [diskRes, recordsRes] = await Promise.all([
       getDisk(route.params.id),
-      getRecords(route.params.id)
+      getRecords(route.params.id, { page: page.value, pageSize: pageSize.value })
     ])
     disk.value = diskRes.data
-    records.value = recordsRes.data
+    records.value = recordsRes.data.list
+    total.value = recordsRes.data.total
   } catch (e) {
     ElMessage.error(e.message)
   } finally {

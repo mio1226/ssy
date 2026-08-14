@@ -1,15 +1,19 @@
-package com.harddisk.module.admin.controller;
+﻿package com.harddisk.module.admin.controller;
 
 import com.harddisk.common.Result;
 import com.harddisk.common.PageResult;
+import com.harddisk.module.admin.dto.UserCreateRequest;
+import com.harddisk.module.admin.dto.UserUpdateRequest;
 import com.harddisk.module.admin.service.AdminService;
 import com.harddisk.module.auth.entity.SysUser;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
     private final AdminService adminService;
@@ -25,13 +29,13 @@ public class AdminController {
     }
 
     @PostMapping("/users")
-    public Result<SysUser> createUser(@RequestBody SysUser user) {
-        return Result.success(adminService.createUser(user));
+    public Result<SysUser> createUser(@RequestBody UserCreateRequest req) {
+        return Result.success(adminService.createUser(req));
     }
 
     @PutMapping("/users/{id}")
-    public Result<SysUser> updateUser(@PathVariable Long id, @RequestBody SysUser user) {
-        return Result.success(adminService.updateUser(id, user));
+    public Result<SysUser> updateUser(@PathVariable Long id, @RequestBody UserUpdateRequest req) {
+        return Result.success(adminService.updateUser(id, req));
     }
 
     @DeleteMapping("/users/{id}")

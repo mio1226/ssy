@@ -8,6 +8,8 @@ import com.harddisk.module.rule.entity.RuleConfig;
 import com.harddisk.module.rule.entity.ViolationRecord;
 import com.harddisk.module.rule.mapper.RuleConfigMapper;
 import com.harddisk.module.rule.mapper.ViolationRecordMapper;
+import com.harddisk.module.auth.entity.SysUser;
+import com.harddisk.module.auth.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -25,6 +27,42 @@ public class RuleService {
     private final ViolationRecordMapper violationRecordMapper;
     private final RuleConfigMapper ruleConfigMapper;
     private final DiskUsageRecordMapper usageRecordMapper;
+    private final SysUserMapper sysUserMapper;
+
+    /**
+     * 获取规则配置值，不存在或禁用时返回null
+     */
+    public String getRuleValue(String ruleKey) {
+        RuleConfig config = ruleConfigMapper.selectOne(
+                new LambdaQueryWrapper<RuleConfig>()
+                        .eq(RuleConfig::getRuleKey, ruleKey)
+                        .eq(RuleConfig::getStatus, 1));
+        return config != null ? config.getRuleValue() : null;
+    }
+
+    /**
+     * 获取规则配置值并转为 boolean
+     */
+    public boolean getRuleBoolean(String ruleKey) {
+        return "1".equals(getRuleValue(ruleKey));
+    }
+
+    /**
+     * 记录违规操作
+     */
+    @Transactional
+    public void recordViolation(Long userId, String username, Long diskId, Long recordId, String type, String description) {
+        ViolationRecord violation = new ViolationRecord();
+        violation.setUserId(userId);
+        violation.setUsername(username);
+        violation.setDiskId(diskId);
+        violation.setRecordId(recordId);
+        violation.setType(type);
+        violation.setDescription(description);
+        violation.setStatus(0);
+        violationRecordMapper.insert(violation);
+        log.info("违规记录已生成: type={}, userId={}, diskId={}, desc={}", type, userId, diskId, description);
+    }
 
     @Scheduled(fixedRate = 60000)
     @Transactional
@@ -48,15 +86,12 @@ public class RuleService {
                             .eq(ViolationRecord::getType, "timeout"));
             if (existing != null) continue;
 
-            ViolationRecord violation = new ViolationRecord();
-            violation.setUserId(record.getOperatorId());
-            violation.setDiskId(record.getDiskId());
-            violation.setRecordId(record.getId());
-            violation.setType("timeout");
-            violation.setDescription("硬盘出库超时，出库时间: " + record.getOutTime());
-            violation.setStatus(0);
-            violationRecordMapper.insert(violation);
+            String username = "";
+            SysUser user = sysUserMapper.selectById(record.getOperatorId());
+            if (user != null) username = user.getUsername();
 
+            recordViolation(record.getOperatorId(), username, record.getDiskId(), record.getId(),
+                    "timeout", "硬盘出库超时，出库时间=" + record.getOutTime());
             log.info("硬盘ID: {} 出库超时，已生成违规记录", record.getDiskId());
         }
     }
@@ -71,13 +106,12 @@ public class RuleService {
                 .anyMatch(r -> r.getStatus() == 1 || r.getStatus() == 2 || r.getStatus() == 3);
 
         if (hasActive) {
-            ViolationRecord violation = new ViolationRecord();
-            violation.setUserId(userId);
-            violation.setDiskId(diskId);
-            violation.setType("reuse");
-            violation.setDescription("尝试重复使用正在使用中的硬盘");
-            violation.setStatus(0);
-            violationRecordMapper.insert(violation);
+            String username = "";
+            SysUser user = sysUserMapper.selectById(userId);
+            if (user != null) username = user.getUsername();
+
+            recordViolation(userId, username, diskId, null, "reuse",
+                    "尝试重复使用正在使用中的硬盘");
             throw new IllegalArgumentException("硬盘当前正在使用中，不可重复出库");
         }
     }

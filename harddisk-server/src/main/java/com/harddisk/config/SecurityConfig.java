@@ -54,10 +54,12 @@ public class SecurityConfig {
                 })
             )
             .authorizeHttpRequests(auth -> auth
+                // 公开接口（白名单）
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/feishu/check").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
+                // ADMIN 角色接口
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // 其余所有接口均需登录
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

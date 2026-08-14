@@ -1,0 +1,1 @@
+ALTER TABLE hard_disk ADD COLUMN display_seq INT DEFAULT NULL COMMENT '显示序号' AFTER id;

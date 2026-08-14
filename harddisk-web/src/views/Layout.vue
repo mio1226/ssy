@@ -21,7 +21,7 @@
           <el-icon><Warning /></el-icon>
           <span>违规记录</span>
         </el-menu-item>
-        <el-menu-item index="/rule/configs">
+        <el-menu-item v-if="userStore.isAdmin()" index="/rule/configs">
           <el-icon><Setting /></el-icon>
           <span>规则配置</span>
         </el-menu-item>
