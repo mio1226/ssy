@@ -1,4 +1,4 @@
-﻿package com.harddisk.module.admin.service;
+package com.harddisk.module.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -33,6 +33,8 @@ public class AdminService {
                 new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, req.getUsername()));
         if (existing != null) throw new IllegalArgumentException("用户名已存在");
 
+        validatePassword(req.getPassword());
+
         SysUser user = new SysUser();
         user.setUsername(req.getUsername());
         user.setPassword(passwordEncoder.encode(req.getPassword()));
@@ -55,6 +57,7 @@ public class AdminService {
         if (req.getRole() != null) existing.setRole(req.getRole());
         if (req.getStatus() != null) existing.setStatus(req.getStatus());
         if (req.getPassword() != null && !req.getPassword().isEmpty()) {
+            validatePassword(req.getPassword());
             existing.setPassword(passwordEncoder.encode(req.getPassword()));
         }
         sysUserMapper.updateById(existing);
@@ -64,5 +67,14 @@ public class AdminService {
     @Transactional
     public void deleteUser(Long id) {
         sysUserMapper.deleteById(id);
+    }
+
+    private void validatePassword(String password) {
+        if (password == null || password.length() < 6) {
+            throw new IllegalArgumentException("密码长度不能少于6位");
+        }
+        if (!password.matches(".*[a-zA-Z].*") || !password.matches(".*[0-9].*")) {
+            throw new IllegalArgumentException("密码必须包含字母和数字");
+        }
     }
 }

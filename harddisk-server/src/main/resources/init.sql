@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS disk_usage_record (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     display_seq INT DEFAULT NULL COMMENT '显示序号(删除后重新排序)',
     disk_id BIGINT NOT NULL COMMENT '硬盘ID',
-    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态 1=出库 2=存储数据中 3=入库待备份 4=入库已备份',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态 1=出库 3=入库待备份 4=入库已备份',
     out_time DATETIME DEFAULT NULL COMMENT '出库时间',
     in_time DATETIME DEFAULT NULL COMMENT '入库时间',
     storage_content TEXT DEFAULT NULL COMMENT '存储内容说明',

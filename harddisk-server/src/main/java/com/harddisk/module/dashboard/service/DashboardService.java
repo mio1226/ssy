@@ -35,11 +35,10 @@ public class DashboardService {
         stats.setTotalRecords(usageRecordMapper.selectCount(null));
         stats.setOutboundRecords(usageRecordMapper.selectCount(
                 new LambdaQueryWrapper<DiskUsageRecord>().eq(DiskUsageRecord::getStatus, 1)));
-        stats.setStoringRecords(usageRecordMapper.selectCount(
-                new LambdaQueryWrapper<DiskUsageRecord>().eq(DiskUsageRecord::getStatus, 2)));
         stats.setInboundPendingRecords(usageRecordMapper.selectCount(
                 new LambdaQueryWrapper<DiskUsageRecord>().eq(DiskUsageRecord::getStatus, 3)));
-        stats.setInboundDoneRecords(stats.getIdleDisks());
+        stats.setInboundDoneRecords(usageRecordMapper.selectCount(
+                new LambdaQueryWrapper<DiskUsageRecord>().eq(DiskUsageRecord::getStatus, 4)));
 
         // 本月统计（按出库时间统计，不限当前状态）
         LocalDateTime monthStart = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);

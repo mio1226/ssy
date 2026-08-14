@@ -29,9 +29,6 @@ public class RuleService {
     private final DiskUsageRecordMapper usageRecordMapper;
     private final SysUserMapper sysUserMapper;
 
-    /**
-     * 获取规则配置值，不存在或禁用时返回null
-     */
     public String getRuleValue(String ruleKey) {
         RuleConfig config = ruleConfigMapper.selectOne(
                 new LambdaQueryWrapper<RuleConfig>()
@@ -40,16 +37,10 @@ public class RuleService {
         return config != null ? config.getRuleValue() : null;
     }
 
-    /**
-     * 获取规则配置值并转为 boolean
-     */
     public boolean getRuleBoolean(String ruleKey) {
         return "1".equals(getRuleValue(ruleKey));
     }
 
-    /**
-     * 记录违规操作
-     */
     @Transactional
     public void recordViolation(Long userId, String username, Long diskId, Long recordId, String type, String description) {
         ViolationRecord violation = new ViolationRecord();
@@ -64,14 +55,25 @@ public class RuleService {
         log.info("违规记录已生成: type={}, userId={}, diskId={}, desc={}", type, userId, diskId, description);
     }
 
-    @Scheduled(fixedRate = 60000)
+    /**
+     * 定时检查超时记录
+     * 使用 fixedDelay 确保上一次任务执行完毕后再启动下一次，避免任务重叠
+     */
+    @Scheduled(fixedDelay = 60000)
     @Transactional
     public void checkTimeout() {
         RuleConfig config = ruleConfigMapper.selectOne(
                 new LambdaQueryWrapper<RuleConfig>().eq(RuleConfig::getRuleKey, "timeout_days"));
         if (config == null || "0".equals(config.getRuleValue())) return;
 
-        int timeoutDays = Integer.parseInt(config.getRuleValue());
+        int timeoutDays;
+        try {
+            timeoutDays = Integer.parseInt(config.getRuleValue());
+        } catch (NumberFormatException e) {
+            log.warn("timeout_days 配置值不是合法整数: {}", config.getRuleValue());
+            return;
+        }
+
         LocalDateTime deadline = LocalDateTime.now().minusDays(timeoutDays);
 
         List<DiskUsageRecord> timeoutRecords = usageRecordMapper.selectList(
@@ -91,7 +93,7 @@ public class RuleService {
             if (user != null) username = user.getUsername();
 
             recordViolation(record.getOperatorId(), username, record.getDiskId(), record.getId(),
-                    "timeout", "硬盘出库超时，出库时间=" + record.getOutTime());
+                    "timeout", "硬盘出库超时，出库时间：" + record.getOutTime());
             log.info("硬盘ID: {} 出库超时，已生成违规记录", record.getDiskId());
         }
     }

@@ -10,7 +10,7 @@ public class DashboardStats {
 
     private long totalRecords;
     private long outboundRecords;
-    private long storingRecords;
+
     private long inboundPendingRecords;
     private long inboundDoneRecords;
 

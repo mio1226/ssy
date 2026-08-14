@@ -1,7 +1,6 @@
-﻿package com.harddisk.module.auth.security;
+package com.harddisk.module.auth.security;
 
 import com.harddisk.module.auth.entity.SysUser;
-import com.harddisk.module.auth.mapper.SysUserMapper;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

@@ -23,6 +23,8 @@ public class AuthService {
     private final RuleService ruleService;
 
     public void register(RegisterRequest req) {
+        validatePassword(req.getPassword());
+
         SysUser existing = sysUserMapper.selectOne(
                 new LambdaQueryWrapper<SysUser>()
                         .eq(SysUser::getUsername, req.getUsername()));
@@ -35,7 +37,6 @@ public class AuthService {
         user.setDisplayName(req.getDisplayName() != null ? req.getDisplayName() : req.getUsername());
         user.setEmail(req.getEmail());
         user.setPhone(req.getPhone());
-        // 规则：新用户默认角色
         String defaultRole = ruleService.getRuleValue("default_role");
         user.setRole(defaultRole != null ? defaultRole : "USER");
         user.setStatus(1);
@@ -54,5 +55,14 @@ public class AuthService {
         }
         String token = jwtUtil.generateToken(user);
         return new LoginResponse(token, user.getUsername(), user.getDisplayName(), user.getRole());
+    }
+
+    private void validatePassword(String password) {
+        if (password == null || password.length() < 6) {
+            throw new IllegalArgumentException("密码长度不能少于6位");
+        }
+        if (!password.matches(".*[a-zA-Z].*") || !password.matches(".*[0-9].*")) {
+            throw new IllegalArgumentException("密码必须包含字母和数字");
+        }
     }
 }

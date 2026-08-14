@@ -70,10 +70,7 @@
               <span class="record-label">出库中</span>
               <span class="record-num">{{ stats.outboundRecords }}</span>
             </div>
-            <div class="record-bar">
-              <span class="record-label">存储数据中</span>
-              <span class="record-num">{{ stats.storingRecords }}</span>
-            </div>
+            
             <div class="record-bar">
               <span class="record-label">入库待备份</span>
               <span class="record-num">{{ stats.inboundPendingRecords }}</span>
@@ -100,8 +97,7 @@ import { ElMessage } from 'element-plus'
 
 const stats = ref({
   totalDisks: 0, idleDisks: 0, inUseDisks: 0,
-  totalRecords: 0, outboundRecords: 0, storingRecords: 0,
-  inboundPendingRecords: 0, inboundDoneRecords: 0,
+  totalRecords: 0, outboundRecords: 0, inboundPendingRecords: 0, inboundDoneRecords: 0,
   monthOutboundCount: 0, monthInboundCount: 0,
   totalViolations: 0, pendingViolations: 0
 })

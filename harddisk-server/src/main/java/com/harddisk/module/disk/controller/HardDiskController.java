@@ -6,6 +6,7 @@ import com.harddisk.module.disk.dto.*;
 import com.harddisk.module.disk.entity.HardDisk;
 import com.harddisk.module.disk.entity.DiskUsageRecord;
 import com.harddisk.module.disk.service.HardDiskService;
+import com.harddisk.module.disk.service.DiskUsageService;
 import com.harddisk.module.auth.entity.SysUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,14 +14,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/disk")
 @RequiredArgsConstructor
 public class HardDiskController {
 
     private final HardDiskService hardDiskService;
+    private final DiskUsageService diskUsageService;
 
     @GetMapping("/list")
     public Result<PageResult<HardDisk>> list(
@@ -61,7 +61,7 @@ public class HardDiskController {
 
     @PostMapping("/outbound")
     public Result<DiskUsageRecord> outbound(@Valid @RequestBody DiskOutRequest req,
-                                             @AuthenticationPrincipal SysUser user) {
+                                      @AuthenticationPrincipal SysUser user) {
         return Result.success(hardDiskService.outbound(req, user.getId(), user.getUsername()));
     }
 
@@ -76,22 +76,20 @@ public class HardDiskController {
             @PathVariable Long diskId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
-        var p = hardDiskService.getRecords(diskId, page, pageSize);
+        var p = diskUsageService.getRecords(diskId, page, pageSize);
         return Result.success(PageResult.of(p.getTotal(), p.getCurrent(), p.getSize(), p.getRecords()));
     }
 
     @GetMapping("/records/{recordId}")
     public Result<DiskUsageRecord> getRecord(@PathVariable Long recordId) {
-        return Result.success(hardDiskService.getRecordById(recordId));
+        return Result.success(diskUsageService.getRecordById(recordId));
     }
-
-    // ========== 浣跨敤璁板綍 CRUD ==========
 
     @GetMapping("/records/list")
     public Result<PageResult<DiskUsageRecord>> listAllRecords(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
-            @RequestParam(required = false) Long recordId,
+            @RequestParam(required = false) Integer displaySeq,
             @RequestParam(required = false) String model,
             @RequestParam(required = false) String sn,
             @RequestParam(required = false) String operatorName,
@@ -99,21 +97,20 @@ public class HardDiskController {
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortOrder) {
-        var p = hardDiskService.listAllRecords(page, pageSize, recordId, model, sn, operatorName, storageContent, status, sortBy, sortOrder);
+        var p = diskUsageService.listAllRecords(page, pageSize, displaySeq, model, sn, operatorName, storageContent, status, sortBy, sortOrder);
         return Result.success(PageResult.of(p.getTotal(), p.getCurrent(), p.getSize(), p.getRecords()));
     }
 
     @PutMapping("/records/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public Result<DiskUsageRecord> updateRecord(@PathVariable Long id, @RequestBody RecordUpdateRequest req, @AuthenticationPrincipal SysUser user) {
-        return Result.success(hardDiskService.updateRecord(id, req, user.getId(), user.getUsername()));
+        return Result.success(diskUsageService.updateRecord(id, req, user.getId(), user.getUsername()));
     }
 
     @DeleteMapping("/records/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public Result<Void> deleteRecord(@PathVariable Long id, @AuthenticationPrincipal SysUser user) {
-        hardDiskService.deleteRecord(id, user.getId(), user.getUsername());
+        diskUsageService.deleteRecord(id, user.getId(), user.getUsername());
         return Result.success();
     }
 }
-

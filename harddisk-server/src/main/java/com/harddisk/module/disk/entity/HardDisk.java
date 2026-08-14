@@ -1,13 +1,19 @@
 package com.harddisk.module.disk.entity;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.harddisk.common.BaseEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
+@EqualsAndHashCode(callSuper = false)
 @TableName("hard_disk")
-public class HardDisk {
+public class HardDisk extends BaseEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Integer displaySeq;
@@ -22,12 +28,6 @@ public class HardDisk {
     private Long creatorId;
     private Boolean isIdle;
     private Long currentRecordId;
-
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
 
     @TableLogic
     private Integer deleted;

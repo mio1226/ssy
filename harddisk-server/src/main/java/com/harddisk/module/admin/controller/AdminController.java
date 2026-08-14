@@ -1,4 +1,4 @@
-﻿package com.harddisk.module.admin.controller;
+package com.harddisk.module.admin.controller;
 
 import com.harddisk.common.Result;
 import com.harddisk.common.PageResult;

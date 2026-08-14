@@ -12,8 +12,8 @@
     </div>
     <el-card>
       <el-form :inline="true" :model="query" style="margin-bottom: 16px">
-        <el-form-item label="记录ID">
-          <el-input v-model="query.recordId" placeholder="精确匹配" clearable style="width: 140px" @keyup.enter="handleSearch" />
+        <el-form-item label="序号">
+          <el-input v-model="query.displaySeq" placeholder="精确匹配" clearable style="width: 140px" @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="硬盘型号">
           <el-input v-model="query.model" placeholder="模糊搜索" clearable style="width: 140px" @keyup.enter="handleSearch" />
@@ -113,7 +113,7 @@ const list = ref([])
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
-const query = reactive({ recordId: null, model: null, sn: null, operatorName: null, storageContent: null, status: null })
+const query = reactive({ displaySeq: null, model: null, sn: null, operatorName: null, storageContent: null, status: null })
 const sortBy = ref('')
 const sortOrder = ref('desc')
 
@@ -134,13 +134,13 @@ const editForm = reactive({ id: null, diskId: null, diskModel: '', diskSn: '', s
 const exportLoading = ref(false)
 
 function statusType(s) { return { 1: 'warning', 2: 'primary', 3: 'info', 4: 'success' }[s] || 'info' }
-function statusLabel(s) { return { 1: '出库',3: '入库待备份', 4: '入库已备份' }[s] || '未知' }
+function statusLabel(s) { return { 1: '出库', 3: '入库待备份', 4: '入库已备份' }[s] || '未知' }
 
 async function fetchData() {
   loading.value = true
   try {
     const params = { page: page.value, pageSize: pageSize.value }
-    if (query.recordId) params.recordId = query.recordId
+    if (query.displaySeq) params.displaySeq = Number(query.displaySeq)
     if (query.model) params.model = query.model
     if (query.sn) params.sn = query.sn
     if (query.operatorName) params.operatorName = query.operatorName
@@ -158,7 +158,7 @@ async function fetchData() {
 }
 
 function handleSearch() { page.value = 1; fetchData() }
-function resetQuery() { query.recordId = null; query.model = null; query.sn = null; query.operatorName = null; query.storageContent = null; query.status = null; handleSearch() }
+function resetQuery() { query.displaySeq = null; query.model = null; query.sn = null; query.operatorName = null; query.storageContent = null; query.status = null; handleSearch() }
 
 function handleEdit(row) {
   Object.assign(editForm, {

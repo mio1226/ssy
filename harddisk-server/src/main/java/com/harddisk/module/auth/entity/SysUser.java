@@ -1,13 +1,18 @@
 package com.harddisk.module.auth.entity;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
+import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.harddisk.common.BaseEntity;
 import lombok.Data;
-import java.time.LocalDateTime;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper = false)
 @TableName("sys_user")
-public class SysUser {
+public class SysUser extends BaseEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String username;
@@ -16,14 +21,8 @@ public class SysUser {
     private String displayName;
     private String email;
     private String phone;
-    private String role;           // ADMIN / USER
-    private Integer status;        // 0=禁用 1=启用
-
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
+    private String role;
+    private Integer status;
 
     @TableLogic
     private Integer deleted;

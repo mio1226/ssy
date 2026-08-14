@@ -1,4 +1,4 @@
-﻿package com.harddisk.module.admin.dto;
+package com.harddisk.module.admin.dto;
 
 import lombok.Data;
 

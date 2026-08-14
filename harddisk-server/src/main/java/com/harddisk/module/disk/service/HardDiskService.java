@@ -38,9 +38,9 @@ HardDiskService {
                 .eq(isIdle != null, HardDisk::getIsIdle, isIdle);
         if ("id".equals(sortBy)) {
             if ("asc".equals(sortOrder)) {
-                wrapper.orderByAsc(HardDisk::getId);
+                wrapper.orderByAsc(HardDisk::getDisplaySeq);
             } else {
-                wrapper.orderByDesc(HardDisk::getId);
+                wrapper.orderByDesc(HardDisk::getDisplaySeq);
             }
         } else if ("model".equals(sortBy)) {
             if ("asc".equals(sortOrder)) {
@@ -94,7 +94,16 @@ HardDiskService {
     public HardDisk update(Long id, HardDiskUpdateRequest req) {
         HardDisk disk = getById(id);
         if (req.getModel() != null) disk.setModel(req.getModel());
-        if (req.getSn() != null) disk.setSn(req.getSn());
+        if (req.getSn() != null && !req.getSn().equals(disk.getSn())) {
+            HardDisk existing = hardDiskMapper.selectOne(
+                    new LambdaQueryWrapper<HardDisk>()
+                            .eq(HardDisk::getSn, req.getSn())
+                            .ne(HardDisk::getId, id));
+            if (existing != null) {
+                throw new IllegalArgumentException("硬盘SN码已存在: " + req.getSn());
+            }
+            disk.setSn(req.getSn());
+        }
         if (req.getCapacity() != null) disk.setCapacity(req.getCapacity());
         if (req.getLocation() != null) disk.setLocation(req.getLocation());
         if (req.getPurchaseTime() != null) disk.setPurchaseTime(req.getPurchaseTime());

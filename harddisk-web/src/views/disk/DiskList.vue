@@ -4,7 +4,7 @@
       <h3>硬盘管理</h3>
       <div>
         <el-button-group style="margin-right: 12px">
-          <el-button :type="sortBy === 'id' ? 'primary' : 'default'" size="small" @click="toggleSort('id')">按ID排序</el-button>
+          <el-button :type="sortBy === 'id' ? 'primary' : 'default'" size="small" @click="toggleSort('id')">按序号排序</el-button>
           <el-button :type="sortBy === 'model' ? 'primary' : 'default'" size="small" @click="toggleSort('model')">按型号排序</el-button>
         </el-button-group>
         <el-button type="primary" @click="$router.push('/disk/create')">新增硬盘</el-button>

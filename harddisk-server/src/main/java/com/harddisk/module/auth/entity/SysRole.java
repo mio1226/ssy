@@ -1,6 +1,10 @@
 package com.harddisk.module.auth.entity;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -10,7 +14,7 @@ public class SysRole {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String name;
-    private String roleKey;   // ADMIN / USER
+    private String roleKey;
     private String description;
     private Integer status;
 
