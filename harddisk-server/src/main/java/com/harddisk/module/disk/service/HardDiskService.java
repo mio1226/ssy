@@ -93,7 +93,6 @@ HardDiskService {
     @Transactional
     public HardDisk update(Long id, HardDiskUpdateRequest req) {
         HardDisk disk = getById(id);
-        if (req.getModel() != null) disk.setModel(req.getModel());
         if (req.getSn() != null && !req.getSn().equals(disk.getSn())) {
             HardDisk existing = hardDiskMapper.selectOne(
                     new LambdaQueryWrapper<HardDisk>()
@@ -104,6 +103,7 @@ HardDiskService {
             }
             disk.setSn(req.getSn());
         }
+        if (req.getModel() != null) disk.setModel(req.getModel());
         if (req.getCapacity() != null) disk.setCapacity(req.getCapacity());
         if (req.getLocation() != null) disk.setLocation(req.getLocation());
         if (req.getPurchaseTime() != null) disk.setPurchaseTime(req.getPurchaseTime());
@@ -127,6 +127,9 @@ HardDiskService {
             throw new IllegalArgumentException("硬盘当前有活跃的使用记录，无法删除");
         }
         hardDiskMapper.deleteById(id);
+        // 清除 currentRecordId 引用，避免逻辑删除恢复后状态不一致
+        disk.setCurrentRecordId(null);
+        hardDiskMapper.updateById(disk);
         renumberDisks();
     }
 

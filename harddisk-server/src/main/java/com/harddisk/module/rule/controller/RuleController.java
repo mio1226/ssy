@@ -35,15 +35,35 @@ public class RuleController {
         return Result.success();
     }
 
+    @PostMapping("/violations/refresh")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<String> refreshViolations() {
+        int count = ruleService.refreshViolations();
+        return Result.success("违规记录已刷新，共生成 " + count + " 条");
+    }
+
     @GetMapping("/configs")
     @PreAuthorize("hasRole('ADMIN')")
     public Result<List<RuleConfig>> getRuleConfigs() {
         return Result.success(ruleService.getRuleConfigs());
     }
 
+    @PostMapping("/configs")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<RuleConfig> createRuleConfig(@RequestBody RuleConfig config) {
+        return Result.success(ruleService.createRuleConfig(config));
+    }
+
     @PutMapping("/configs")
     @PreAuthorize("hasRole('ADMIN')")
     public Result<RuleConfig> updateRuleConfig(@RequestBody RuleConfig config) {
         return Result.success(ruleService.updateRuleConfig(config));
+    }
+
+    @DeleteMapping("/configs/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Void> deleteRuleConfig(@PathVariable Long id) {
+        ruleService.deleteRuleConfig(id);
+        return Result.success();
     }
 }

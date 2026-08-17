@@ -38,7 +38,7 @@ public class ExportService {
 
     @Transactional(readOnly = true)
     public void exportDisks(String sheetId) {
-        List<String> headers = List.of("ID", "型号", "SN码", "容量(TB)", "位置", "采购时间",
+        List<String> headers = List.of("序号", "型号", "SN码", "容量(TB)", "位置", "采购时间",
                 "采购单价", "采购OA流程编号", "备注", "状态", "创建时间");
 
         List<List<Object>> allRows = new ArrayList<>();
@@ -51,7 +51,7 @@ public class ExportService {
             total = result.getTotal();
             for (HardDisk d : result.getRecords()) {
                 List<Object> row = new ArrayList<>();
-                row.add(d.getId());
+                row.add(d.getDisplaySeq());
                 row.add(d.getModel());
                 row.add(d.getSn());
                 row.add(d.getCapacity());
@@ -74,9 +74,9 @@ public class ExportService {
 
     @Transactional(readOnly = true)
     public void exportRecords(String sheetId) {
-        List<String> headers = List.of("记录ID", "硬盘型号", "SN码", "磁盘容量(TB)", "硬盘位置",
+        List<String> headers = List.of("序号", "硬盘序号", "硬盘型号", "SN码", "磁盘容量(TB)", "硬盘位置",
                 "出库时间", "入库时间", "使用状态", "是否空闲", "存储信息内容",
-                "采购时间", "采购单价(人民币)", "采购OA流程编号", "备注", "创建人", "父记录");
+                "采购时间", "采购单价(人民币)", "采购OA流程编号", "备注", "创建人", "父记录序号");
 
         List<List<Object>> allRows = new ArrayList<>();
         long page = 1;
@@ -91,16 +91,22 @@ public class ExportService {
                     .map(DiskUsageRecord::getDiskId).distinct().collect(Collectors.toList());
             List<Long> userIds = result.getRecords().stream()
                     .map(DiskUsageRecord::getOperatorId).distinct().collect(Collectors.toList());
+            List<Long> parentIds = result.getRecords().stream()
+                    .map(DiskUsageRecord::getParentRecordId).filter(id -> id != null).distinct().collect(Collectors.toList());
 
             Map<Long, HardDisk> diskMap = diskIds.isEmpty() ? Map.of() : hardDiskMapper.selectBatchIds(diskIds).stream()
                     .collect(Collectors.toMap(HardDisk::getId, d -> d));
             Map<Long, String> userMap = userIds.isEmpty() ? Map.of() : sysUserMapper.selectBatchIds(userIds).stream()
                     .collect(Collectors.toMap(SysUser::getId, SysUser::getUsername));
+            Map<Long, DiskUsageRecord> parentMap = parentIds.isEmpty() ? Map.of() : usageRecordMapper.selectBatchIds(parentIds).stream()
+                    .collect(Collectors.toMap(DiskUsageRecord::getId, r -> r));
 
             for (DiskUsageRecord r : result.getRecords()) {
                 HardDisk disk = diskMap.get(r.getDiskId());
+                DiskUsageRecord parent = r.getParentRecordId() != null ? parentMap.get(r.getParentRecordId()) : null;
                 List<Object> row = new ArrayList<>();
-                row.add(r.getId());
+                row.add(r.getDisplaySeq());
+                row.add(disk != null ? disk.getDisplaySeq() : "");
                 row.add(disk != null ? disk.getModel() : "");
                 row.add(disk != null ? disk.getSn() : "");
                 row.add(disk != null ? disk.getCapacity() : "");
@@ -115,7 +121,7 @@ public class ExportService {
                 row.add(disk != null ? disk.getPurchaseOaNo() : "");
                 row.add(disk != null ? disk.getRemark() : "");
                 row.add(userMap.getOrDefault(r.getOperatorId(), ""));
-                row.add(r.getParentRecordId());
+                row.add(parent != null ? parent.getDisplaySeq() : "");
                 allRows.add(row);
             }
             page++;
@@ -128,7 +134,7 @@ public class ExportService {
 
     @Transactional(readOnly = true)
     public void exportViolations(String sheetId) {
-        List<String> headers = List.of("违规ID", "用户", "硬盘型号", "硬盘SN", "采购OA流程编号", "类型",
+        List<String> headers = List.of("硬盘序号", "记录序号", "用户", "硬盘型号", "硬盘SN", "采购OA流程编号", "类型",
                 "描述", "状态", "创建时间", "处理时间");
 
         List<List<Object>> allRows = new ArrayList<>();
@@ -144,16 +150,23 @@ public class ExportService {
                     .map(ViolationRecord::getDiskId).distinct().collect(Collectors.toList());
             List<Long> userIds = result.getRecords().stream()
                     .map(ViolationRecord::getUserId).distinct().collect(Collectors.toList());
+            List<Long> recordIds = result.getRecords().stream()
+                    .filter(v -> v.getRecordId() != null)
+                    .map(ViolationRecord::getRecordId).distinct().collect(Collectors.toList());
 
             Map<Long, HardDisk> diskMap = diskIds.isEmpty() ? Map.of() : hardDiskMapper.selectBatchIds(diskIds).stream()
                     .collect(Collectors.toMap(HardDisk::getId, d -> d));
             Map<Long, String> userMap = userIds.isEmpty() ? Map.of() : sysUserMapper.selectBatchIds(userIds).stream()
                     .collect(Collectors.toMap(SysUser::getId, SysUser::getUsername));
+            Map<Long, DiskUsageRecord> recMap = recordIds.isEmpty() ? Map.of() : usageRecordMapper.selectBatchIds(recordIds).stream()
+                    .collect(Collectors.toMap(DiskUsageRecord::getId, r -> r));
 
             for (ViolationRecord v : result.getRecords()) {
                 HardDisk disk = diskMap.get(v.getDiskId());
+                DiskUsageRecord rec = v.getRecordId() != null ? recMap.get(v.getRecordId()) : null;
                 List<Object> row = new ArrayList<>();
-                row.add(v.getId());
+                row.add(disk != null ? disk.getDisplaySeq() : "");
+                row.add(rec != null ? rec.getDisplaySeq() : "");
                 row.add(userMap.getOrDefault(v.getUserId(), ""));
                 row.add(disk != null ? disk.getModel() : "");
                 row.add(disk != null ? disk.getSn() : "");

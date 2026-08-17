@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.harddisk.common.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -27,4 +28,10 @@ public class ViolationRecord extends BaseEntity {
 
     @TableLogic
     private Integer deleted;
+
+    @TableField(exist = false)
+    private Integer diskDisplaySeq;
+
+    @TableField(exist = false)
+    private Integer recordDisplaySeq;
 }

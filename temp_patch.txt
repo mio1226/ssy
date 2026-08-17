@@ -1,0 +1,30 @@
+    public List<RuleConfig> getRuleConfigs() {
+        return ruleConfigMapper.selectList(null);
+    }
+
+    @Transactional
+    public RuleConfig createRuleConfig(RuleConfig config) {
+        if (config.getRuleKey() == null || config.getRuleKey().trim().isEmpty()) {
+            throw new IllegalArgumentException("规则键不能为空");
+        }
+        RuleConfig existing = ruleConfigMapper.selectOne(
+                new LambdaQueryWrapper<RuleConfig>().eq(RuleConfig::getRuleKey, config.getRuleKey()));
+        if (existing != null) {
+            throw new IllegalArgumentException("规则键已存在: " + config.getRuleKey());
+        }
+        if (config.getStatus() == null) config.setStatus(1);
+        ruleConfigMapper.insert(config);
+        return config;
+    }
+
+    @Transactional
+    public RuleConfig updateRuleConfig(RuleConfig config) {
+        RuleConfig existing = ruleConfigMapper.selectById(config.getId());
+        if (existing == null) throw new IllegalArgumentException("规则配置不存在");
+        if (config.getRuleValue() != null) existing.setRuleValue(config.getRuleValue());
+        if (config.getDescription() != null) existing.setDescription(config.getDescription());
+        if (config.getStatus() != null) existing.setStatus(config.getStatus());
+        ruleConfigMapper.updateById(existing);
+        return existing;
+    }
+}

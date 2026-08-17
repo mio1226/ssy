@@ -122,15 +122,12 @@ public class RuleService {
 
     /**
      * 定时检查不完整数据记录
-     * 出库记录(status=1)：只检查出库时间和操作人是否完整
-     * 入库记录(status=3,4)：检查入库时间、存储内容、操作人是否完整
      */
     @Scheduled(fixedDelay = 60000)
     @Transactional
     public void checkIncompleteData() {
         if (!getRuleBoolean("incomplete_data_check")) return;
 
-        // 检查硬盘表：model、sn、capacity 为必要字段
         List<HardDisk> incompleteDisks = hardDiskMapper.selectList(
                 new LambdaQueryWrapper<HardDisk>()
                         .and(w -> w
@@ -146,34 +143,24 @@ public class RuleService {
             upsertViolation(null, null, disk.getId(), disk.getCurrentRecordId(), "incomplete_data", desc.toString());
         }
 
-        // 检查出库记录(status=1)：出库时间和操作人必填
-        List<DiskUsageRecord> outboundRecords = usageRecordMapper.selectList(
+        List<DiskUsageRecord> incompleteRecords = usageRecordMapper.selectList(
                 new LambdaQueryWrapper<DiskUsageRecord>()
-                        .eq(DiskUsageRecord::getStatus, 1)
                         .and(w -> w
-                                .isNull(DiskUsageRecord::getOutTime)
-                                .or().isNull(DiskUsageRecord::getOperatorId))
+                                .eq(DiskUsageRecord::getStatus, 1)
+                                .and(w2 -> w2
+                                        .isNull(DiskUsageRecord::getOutTime).or()
+                                        .isNull(DiskUsageRecord::getOperatorId))
+                                .or(i -> i.in(DiskUsageRecord::getStatus, 3, 4))
+                                .and(w2 -> w2
+                                        .isNull(DiskUsageRecord::getInTime).or()
+                                        .isNull(DiskUsageRecord::getStorageContent).or()
+                                        .eq(DiskUsageRecord::getStorageContent, "").or()
+                                        .isNull(DiskUsageRecord::getOperatorId)))
         );
-        for (DiskUsageRecord record : outboundRecords) {
-            StringBuilder desc = new StringBuilder("出库记录不完整");
-            if (record.getOutTime() == null) desc.append("，缺少出库时间");
-            if (record.getOperatorId() == null) desc.append("，缺少操作人");
-            upsertViolation(null, null, record.getDiskId(), record.getId(), "incomplete_data", desc.toString());
-        }
-
-        // 检查入库记录(status=3,4)：入库时间、存储内容、操作人必填
-        List<DiskUsageRecord> inboundRecords = usageRecordMapper.selectList(
-                new LambdaQueryWrapper<DiskUsageRecord>()
-                        .in(DiskUsageRecord::getStatus, 3, 4)
-                        .and(w -> w
-                                .isNull(DiskUsageRecord::getInTime)
-                                .or().isNull(DiskUsageRecord::getStorageContent)
-                                .or().eq(DiskUsageRecord::getStorageContent, "")
-                                .or().isNull(DiskUsageRecord::getOperatorId))
-        );
-        for (DiskUsageRecord record : inboundRecords) {
-            StringBuilder desc = new StringBuilder("入库记录不完整");
-            if (record.getInTime() == null) desc.append("，缺少入库时间");
+        for (DiskUsageRecord record : incompleteRecords) {
+            StringBuilder desc = new StringBuilder("使用记录不完整");
+            if (record.getOutTime() == null && record.getStatus() == 1) desc.append("，缺少出库时间");
+            if (record.getInTime() == null && (record.getStatus() == 3 || record.getStatus() == 4)) desc.append("，缺少入库时间");
             if (record.getStorageContent() == null || record.getStorageContent().isEmpty()) desc.append("，缺少存储内容");
             if (record.getOperatorId() == null) desc.append("，缺少操作人");
             upsertViolation(null, null, record.getDiskId(), record.getId(), "incomplete_data", desc.toString());
@@ -181,18 +168,21 @@ public class RuleService {
     }
 
     /**
-     * 手动刷新违规记录：清空所有违规记录并重新扫描所有规则生成
+     * 手动刷新违规记录：清空所有违规记录并重新扫描生成
      */
     @Transactional
     public int refreshViolations() {
+        // 清空所有违规记录
         violationRecordMapper.delete(null);
         log.info("已清空所有违规记录");
 
+        // 重新扫描各类违规
         int count = 0;
 
         // 1. 超时检查
         RuleConfig timeoutConfig = ruleConfigMapper.selectOne(
-                new LambdaQueryWrapper<RuleConfig>().eq(RuleConfig::getRuleKey, "timeout_days"));
+                new LambdaQueryWrapper<RuleConfig>()
+                        .eq(RuleConfig::getRuleKey, "timeout_days"));
         if (timeoutConfig != null && timeoutConfig.getRuleValue() != null
                 && !timeoutConfig.getRuleValue().trim().isEmpty()
                 && timeoutConfig.getStatus() != null && timeoutConfig.getStatus() == 1) {
@@ -234,33 +224,24 @@ public class RuleService {
                 count++;
             }
 
-            List<DiskUsageRecord> outboundRecords = usageRecordMapper.selectList(
+            List<DiskUsageRecord> incompleteRecords = usageRecordMapper.selectList(
                     new LambdaQueryWrapper<DiskUsageRecord>()
-                            .eq(DiskUsageRecord::getStatus, 1)
                             .and(w -> w
-                                    .isNull(DiskUsageRecord::getOutTime)
-                                    .or().isNull(DiskUsageRecord::getOperatorId))
+                                    .eq(DiskUsageRecord::getStatus, 1)
+                                    .and(w2 -> w2
+                                            .isNull(DiskUsageRecord::getOutTime).or()
+                                            .isNull(DiskUsageRecord::getOperatorId))
+                                    .or(i -> i.in(DiskUsageRecord::getStatus, 3, 4))
+                                    .and(w2 -> w2
+                                            .isNull(DiskUsageRecord::getInTime).or()
+                                            .isNull(DiskUsageRecord::getStorageContent).or()
+                                            .eq(DiskUsageRecord::getStorageContent, "").or()
+                                            .isNull(DiskUsageRecord::getOperatorId)))
             );
-            for (DiskUsageRecord record : outboundRecords) {
-                StringBuilder desc = new StringBuilder("出库记录不完整");
-                if (record.getOutTime() == null) desc.append("，缺少出库时间");
-                if (record.getOperatorId() == null) desc.append("，缺少操作人");
-                recordViolation(null, null, record.getDiskId(), record.getId(), "incomplete_data", desc.toString());
-                count++;
-            }
-
-            List<DiskUsageRecord> inboundRecords = usageRecordMapper.selectList(
-                    new LambdaQueryWrapper<DiskUsageRecord>()
-                            .in(DiskUsageRecord::getStatus, 3, 4)
-                            .and(w -> w
-                                    .isNull(DiskUsageRecord::getInTime)
-                                    .or().isNull(DiskUsageRecord::getStorageContent)
-                                    .or().eq(DiskUsageRecord::getStorageContent, "")
-                                    .or().isNull(DiskUsageRecord::getOperatorId))
-            );
-            for (DiskUsageRecord record : inboundRecords) {
-                StringBuilder desc = new StringBuilder("入库记录不完整");
-                if (record.getInTime() == null) desc.append("，缺少入库时间");
+            for (DiskUsageRecord record : incompleteRecords) {
+                StringBuilder desc = new StringBuilder("使用记录不完整");
+                if (record.getOutTime() == null && record.getStatus() == 1) desc.append("，缺少出库时间");
+                if (record.getInTime() == null && (record.getStatus() == 3 || record.getStatus() == 4)) desc.append("，缺少入库时间");
                 if (record.getStorageContent() == null || record.getStorageContent().isEmpty()) desc.append("，缺少存储内容");
                 if (record.getOperatorId() == null) desc.append("，缺少操作人");
                 recordViolation(null, null, record.getDiskId(), record.getId(), "incomplete_data", desc.toString());
@@ -273,111 +254,7 @@ public class RuleService {
     }
 
     public void checkReuse(Long diskId, Long userId) {
-        List<DiskUsageRecord> activeRecords = usageRecordMapper.selectList(
-                new LambdaQueryWrapper<DiskUsageRecord>()
-                        .eq(DiskUsageRecord::getDiskId, diskId)
-                        .in(DiskUsageRecord::getStatus, 1, 2, 3));
-
-        boolean hasActive = activeRecords.stream()
-                .anyMatch(r -> r.getStatus() == 1 || r.getStatus() == 2 || r.getStatus() == 3);
-
-        if (hasActive) {
-            String username = "";
-            SysUser user = sysUserMapper.selectById(userId);
-            if (user != null) username = user.getUsername();
-
-            recordViolation(userId, username, diskId, null, "reuse",
-                    "尝试重复使用正在使用中的硬盘");
-            throw new IllegalArgumentException("硬盘当前正在使用中，不可重复出库");
-        }
+        // ... existing code ...
     }
-
-    public Page<ViolationRecord> listViolations(int page, int pageSize, String type, Integer status) {
-        Page<ViolationRecord> p = new Page<>(page, pageSize);
-        LambdaQueryWrapper<ViolationRecord> wrapper = new LambdaQueryWrapper<ViolationRecord>()
-                .eq(type != null, ViolationRecord::getType, type)
-                .eq(status != null, ViolationRecord::getStatus, status)
-                .orderByDesc(ViolationRecord::getCreateTime);
-        Page<ViolationRecord> result = violationRecordMapper.selectPage(p, wrapper);
-
-        if (result.getRecords() != null && !result.getRecords().isEmpty()) {
-            List<Long> diskIds = result.getRecords().stream()
-                    .map(ViolationRecord::getDiskId)
-                    .distinct()
-                    .collect(Collectors.toList());
-            List<HardDisk> disks = hardDiskMapper.selectBatchIds(diskIds);
-            Map<Long, HardDisk> diskMap = disks.stream()
-                    .collect(Collectors.toMap(HardDisk::getId, d -> d));
-
-            List<Long> recordIds = result.getRecords().stream()
-                    .filter(v -> v.getRecordId() != null)
-                    .map(ViolationRecord::getRecordId)
-                    .distinct()
-                    .collect(Collectors.toList());
-            List<DiskUsageRecord> records = usageRecordMapper.selectBatchIds(recordIds);
-            Map<Long, DiskUsageRecord> recMap = records.stream()
-                    .collect(Collectors.toMap(DiskUsageRecord::getId, r -> r));
-
-            for (ViolationRecord v : result.getRecords()) {
-                HardDisk d = diskMap.get(v.getDiskId());
-                if (d != null) {
-                    v.setDiskDisplaySeq(d.getDisplaySeq());
-                }
-                if (v.getRecordId() != null) {
-                    DiskUsageRecord r = recMap.get(v.getRecordId());
-                    if (r != null) {
-                        v.setRecordDisplaySeq(r.getDisplaySeq());
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    @Transactional
-    public void resolveViolation(Long id) {
-        ViolationRecord record = violationRecordMapper.selectById(id);
-        if (record == null) throw new IllegalArgumentException("违规记录不存在");
-        record.setStatus(1);
-        record.setHandledTime(LocalDateTime.now());
-        violationRecordMapper.updateById(record);
-    }
-
-    public List<RuleConfig> getRuleConfigs() {
-        return ruleConfigMapper.selectList(null);
-    }
-
-    @Transactional
-    public RuleConfig createRuleConfig(RuleConfig config) {
-        if (config.getRuleKey() == null || config.getRuleKey().trim().isEmpty()) {
-            throw new IllegalArgumentException("规则键不能为空");
-        }
-        RuleConfig existing = ruleConfigMapper.selectOne(
-                new LambdaQueryWrapper<RuleConfig>().eq(RuleConfig::getRuleKey, config.getRuleKey()));
-        if (existing != null) {
-            throw new IllegalArgumentException("规则键已存在: " + config.getRuleKey());
-        }
-        if (config.getStatus() == null) config.setStatus(1);
-        ruleConfigMapper.insert(config);
-        return config;
-    }
-
-    @Transactional
-    public RuleConfig updateRuleConfig(RuleConfig config) {
-        RuleConfig existing = ruleConfigMapper.selectById(config.getId());
-        if (existing == null) throw new IllegalArgumentException("规则配置不存在");
-        if (config.getRuleValue() != null) existing.setRuleValue(config.getRuleValue());
-        if (config.getDescription() != null) existing.setDescription(config.getDescription());
-        if (config.getStatus() != null) existing.setStatus(config.getStatus());
-        ruleConfigMapper.updateById(existing);
-        return existing;
-    }
-
-    @Transactional
-    public void deleteRuleConfig(Long id) {
-        RuleConfig existing = ruleConfigMapper.selectById(id);
-        if (existing == null) throw new IllegalArgumentException("规则配置不存在");
-        ruleConfigMapper.deleteById(id);
-        log.info("规则配置已删除: id={}, ruleKey={}", id, existing.getRuleKey());
-    }
+    // ... rest of existing methods ...
 }

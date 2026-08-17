@@ -2,30 +2,35 @@
   <div>
     <h3 style="margin-bottom: 16px">违规记录</h3>
     <el-card>
-      <el-form :inline="true" :model="query" style="margin-bottom: 16px">
-        <el-form-item label="类型">
-          <el-select v-model="query.type" placeholder="全部" clearable style="width: 180px">
-            <el-option label="全部" value="" />
-            <el-option label="出库超时" value="timeout" />
-            <el-option label="重复使用" value="reuse" />
-            <el-option label="删除活跃硬盘" value="delete_disk_active" />
-            <el-option label="违规删除记录" value="delete_record" />
-            <el-option label="违规入库" value="inbound_invalid_status" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="query.status" placeholder="全部" clearable style="width: 140px">
-            <el-option label="待处理" :value="0" />
-            <el-option label="已处理" :value="1" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="resetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
+      <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center">
+        <el-form :inline="true" :model="query" style="margin: 0">
+          <el-form-item label="类型">
+            <el-select v-model="query.type" placeholder="全部" clearable style="width: 180px">
+              <el-option label="全部" value="" />
+              <el-option label="出库超时" value="timeout" />
+              <el-option label="重复使用" value="reuse" />
+              <el-option label="删除活跃硬盘" value="delete_disk_active" />
+              <el-option label="违规删除记录" value="delete_record" />
+              <el-option label="违规入库" value="inbound_invalid_status" />
+              <el-option label="数据不完整" value="incomplete_data" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="query.status" placeholder="全部" clearable style="width: 140px">
+              <el-option label="待处理" :value="0" />
+              <el-option label="已处理" :value="1" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="handleSearch">查询</el-button>
+            <el-button @click="resetQuery">重置</el-button>
+          </el-form-item>
+        </el-form>
+        <el-button type="warning" @click="handleRefresh" :loading="refreshLoading">更新违规记录</el-button>
+      </div>
       <el-table :data="list" border stripe v-loading="loading">
-        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column prop="diskDisplaySeq" label="硬盘序号" width="90" />
+        <el-table-column prop="recordDisplaySeq" label="记录序号" width="90" />
         <el-table-column prop="username" label="操作人" width="100" />
         <el-table-column label="类型" width="120">
           <template #default="{ row }">
@@ -55,10 +60,11 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { listViolations, resolveViolation } from '@/api/rule'
+import { listViolations, resolveViolation, refreshViolations } from '@/api/rule'
 import { ElMessage } from 'element-plus'
 
 const loading = ref(false)
+const refreshLoading = ref(false)
 const list = ref([])
 const page = ref(1)
 const pageSize = ref(20)
@@ -71,7 +77,8 @@ function typeLabel(type) {
     reuse: '重复使用',
     delete_disk_active: '删除活跃硬盘',
     delete_record: '违规删除记录',
-    inbound_invalid_status: '违规入库'
+    inbound_invalid_status: '违规入库',
+    incomplete_data: '数据不完整'
   }
   return map[type] || type
 }
@@ -82,7 +89,8 @@ function typeTag(type) {
     reuse: 'danger',
     delete_disk_active: 'danger',
     delete_record: 'danger',
-    inbound_invalid_status: 'warning'
+    inbound_invalid_status: 'warning',
+    incomplete_data: 'warning'
   }
   return map[type] || 'info'
 }
@@ -113,6 +121,19 @@ async function handleResolve(row) {
     fetchData()
   } catch (e) {
     ElMessage.error(e.message)
+  }
+}
+
+async function handleRefresh() {
+  refreshLoading.value = true
+  try {
+    const res = await refreshViolations()
+    ElMessage.success(res.data)
+    fetchData()
+  } catch (e) {
+    ElMessage.error(e.message)
+  } finally {
+    refreshLoading.value = false
   }
 }
 
