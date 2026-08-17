@@ -6,12 +6,21 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="硬盘型号" prop="model">
-              <el-input v-model="form.model" placeholder="如：捷移、西数SSD" />
+              <el-input v-model="form.model" placeholder="如：捷存、西数SSD" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="SN码" prop="sn">
-              <el-input v-model="form.sn" placeholder="拍照识别或手动输入" />
+              <div style="display: flex; gap: 8px; width: 100%">
+                <el-input v-model="form.sn" placeholder="上传照片识别或手动输入" style="flex: 1" />
+                <el-button type="primary" @click="openScanner">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px">
+                    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="12" cy="13" r="4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  拍照识别
+                </el-button>
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -51,6 +60,8 @@
         </el-form-item>
       </el-form>
     </el-card>
+
+    <SnUploadScanner ref="scannerRef" @confirm="onSnConfirmed" />
   </div>
 </template>
 
@@ -59,12 +70,14 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getDisk, createDisk, updateDisk } from '@/api/disk'
 import { ElMessage } from 'element-plus'
+import SnUploadScanner from '@/components/SnUploadScanner.vue'
 
 const route = useRoute()
 const router = useRouter()
 const isEdit = computed(() => !!route.params.id)
 const formRef = ref(null)
 const loading = ref(false)
+const scannerRef = ref(null)
 
 const form = reactive({
   model: '', sn: '', capacity: 0, location: '', purchaseTime: null,
@@ -87,6 +100,14 @@ onMounted(async () => {
     }
   }
 })
+
+function openScanner() {
+  scannerRef.value?.open()
+}
+
+function onSnConfirmed(sn) {
+  form.sn = sn
+}
 
 async function handleSubmit() {
   const valid = await formRef.value.validate().catch(() => {})

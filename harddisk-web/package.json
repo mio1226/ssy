@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@zxing/library": "^0.23.0",
     "axios": "^1.19.0",
     "element-plus": "^2.14.4",
     "pinia": "^4.0.2",

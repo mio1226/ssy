@@ -138,6 +138,11 @@ public class FeishuService {
         int totalRows = 1 + rows.size();
         int totalCols = headers.size();
         String endCol = getColumnLetter(totalCols);
+
+        // 先清空 sheet 中所有已有数据
+        clearSheet(token, spreadsheetToken, sheetId, totalCols);
+
+        // 写入新数据
         String range = sheetId + "!" + startRange + ":" + endCol + totalRows;
 
         HttpHeaders httpHeaders = new HttpHeaders();
@@ -180,6 +185,77 @@ public class FeishuService {
             log.error("飞书写入异常", e);
             throw new RuntimeException("飞书写入异常: " + e.getMessage());
         }
+    }
+
+    private void clearSheet(String token, String spreadsheetToken, String sheetId, int totalCols) {
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+        httpHeaders.setBearerAuth(token);
+
+        // 获取 sheet 实际数据范围（最大行数）
+        int maxRows = getSheetMaxRows(token, spreadsheetToken, sheetId);
+        if (maxRows <= 1) {
+            return; // 没有数据或只有标题行，无需清空
+        }
+
+        String endCol = getColumnLetter(totalCols);
+        String range = sheetId + "!A1:" + endCol + maxRows;
+
+        // 用空值覆盖整个范围来清空数据
+        ArrayNode emptyValues = objectMapper.createArrayNode();
+        for (int r = 0; r < maxRows; r++) {
+            ArrayNode emptyRow = objectMapper.createArrayNode();
+            for (int c = 0; c < totalCols; c++) {
+                emptyRow.add("");
+            }
+            emptyValues.add(emptyRow);
+        }
+
+        ObjectNode valueRange = objectMapper.createObjectNode();
+        valueRange.put("range", range);
+        valueRange.set("values", emptyValues);
+
+        ObjectNode finalBody = objectMapper.createObjectNode();
+        finalBody.set("valueRange", valueRange);
+
+        try {
+            HttpEntity<String> request = new HttpEntity<>(finalBody.toString(), httpHeaders);
+            JsonNode resp = executeWithRetry(
+                    BASE_URL + "/sheets/v2/spreadsheets/" + spreadsheetToken + "/values",
+                    HttpMethod.PUT, request, JsonNode.class, 3);
+            if (resp != null && resp.has("code") && resp.get("code").asInt() == 0) {
+                log.info("飞书清空成功，spreadsheet={}, range={}", spreadsheetToken, range);
+            } else {
+                log.warn("飞书清空返回异常: {}", resp != null ? resp.toString() : "null");
+            }
+        } catch (Exception e) {
+            log.warn("飞书清空失败，继续写入: {}", e.getMessage());
+        }
+    }
+
+    private int getSheetMaxRows(String token, String spreadsheetToken, String sheetId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<String> req = new HttpEntity<>(headers);
+        try {
+            JsonNode body = executeWithRetry(
+                    BASE_URL + "/sheets/v2/spreadsheets/" + spreadsheetToken + "/metainfo",
+                    HttpMethod.GET, req, JsonNode.class, 3);
+            if (body != null && body.has("code") && body.get("code").asInt() == 0) {
+                JsonNode sheets = body.get("data").get("sheets");
+                for (JsonNode sheet : sheets) {
+                    if (sheet.has("sheetId") && sheet.get("sheetId").asText().equals(sheetId)) {
+                        if (sheet.has("rowCount")) {
+                            return sheet.get("rowCount").asInt();
+                        }
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("获取 sheet 行数失败: {}", e.getMessage());
+        }
+        return 0;
     }
 
     private String getSheetId(String token, String spreadsheetToken, String sheetTitle) {

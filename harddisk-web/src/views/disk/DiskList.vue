@@ -16,7 +16,15 @@
           <el-input v-model="query.model" placeholder="搜索型号" clearable @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="SN码">
-          <el-input v-model="query.sn" placeholder="搜索SN码" clearable @keyup.enter="handleSearch" />
+          <div style="display: flex; gap: 4px">
+            <el-input v-model="query.sn" placeholder="搜索SN码" clearable @keyup.enter="handleSearch" style="flex: 1" />
+            <el-button type="primary" size="small" @click="openScanner">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle">
+                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="13" r="4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </el-button>
+          </div>
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="query.isIdle" placeholder="全部" clearable style="width: 140px">
@@ -44,9 +52,9 @@
         <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
         <el-table-column label="操作" :width="userStore.isAdmin() ? 280 : 160" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="$router.push(`/disk/${row.id}/records`)">记录</el-button>
+            <el-button size="small" @click="$router.push('/disk/' + row.id + '/records')">记录</el-button>
             <el-button size="small" @click="handleOutbound(row)">出库</el-button>
-            <el-button v-if="userStore.isAdmin()" size="small" @click="$router.push(`/disk/${row.id}/edit`)">编辑</el-button>
+            <el-button v-if="userStore.isAdmin()" size="small" @click="$router.push('/disk/' + row.id + '/edit')">编辑</el-button>
             <el-button v-if="userStore.isAdmin()" size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -60,6 +68,8 @@
           @current-change="fetchData" />
       </div>
     </el-card>
+
+    <SnUploadScanner ref="scannerRef" @confirm="onSnConfirmed" />
 
     <el-dialog v-model="outDialog" title="硬盘出库" width="500px">
       <el-form :model="outForm" :rules="outRules" ref="outFormRef" label-width="100px">
@@ -84,6 +94,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { listDisks, deleteDisk, outbound } from '@/api/disk'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import SnUploadScanner from '@/components/SnUploadScanner.vue'
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -94,6 +105,16 @@ const total = ref(0)
 const query = reactive({ model: '', sn: '', isIdle: null })
 const sortBy = ref('')
 const sortOrder = ref('desc')
+const scannerRef = ref(null)
+
+function openScanner() {
+  scannerRef.value?.open()
+}
+
+function onSnConfirmed(sn) {
+  query.sn = sn
+  handleSearch()
+}
 
 function toggleSort(field) {
   if (sortBy.value === field) {
